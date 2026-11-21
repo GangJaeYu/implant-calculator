@@ -919,7 +919,7 @@ $('copyBtn').onclick=async()=>{
   setTimeout(()=>{b.textContent='텍스트 복사';},1800);
 };
 render();
-if(!window.claude&&'serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('./sw.js').catch(()=>{});}
+if(!window.claude&&'serviceWorker' in navigator&&window.isSecureContext&&location.protocol!=='file:'){navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 </script>
 </body>
 </html>
