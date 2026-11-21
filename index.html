@@ -702,7 +702,7 @@ function renderWarn(all){
   }));
   $('warnBox').innerHTML=out.join('');
   const nb=seen.size,nf=all.reduce((a,m)=>a+m.flags.length,0);
-  $('revHint').innerHTML=(nb?`<span class="pill bad">간격 부족 ${nb}</span> `:'')+(nf?`<span class="pill warn">확인 ${nf}</span>`:'');
+  $('revHint').innerHTML=(nb?`<span class="pill bad">간격 부족 ${nb}구간 · 픽스처 ${FAIL.size}개</span> `:'')+(nf?`<span class="pill warn">확인 ${nf}</span>`:'');
 }
 const CASEKEY='implant-cases-v1';
 function loadCases(){try{return JSON.parse(localStorage.getItem(CASEKEY))||{};}catch(e){return {};}}
