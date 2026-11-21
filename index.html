@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>임플란트 식립 거리 계산기</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#15202b">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: 한 컬럼 도구. 접는 섹션(치아 선택·픽스처 규격) → 고정 메인 그림 → 접는 섹션(검토·보정·근거·내보내기) */
+  --bg:#f2f4f6; --surface:#ffffff; --ink:#15202b; --muted:#5a6775; --line:#d5dce3;
+  --accent:#1d5fb0; --width:#c0352d; --plate:#fbfaf7;
+  --gum:#f1c9c4; --bone:#efe6d6; --implant:#dde9f8;
+  --ok:#1b7443; --ok-bg:#e2f2e8; --bad:#ad2620; --bad-bg:#fbe4e1; --warn:#865600; --warn-bg:#fcefd4;
+  --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --font-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10151b; --surface:#19212a; --ink:#e5eaf0; --muted:#98a4b0; --line:#2d3742;
+    --accent:#72aaf0; --width:#f0807a; --plate:#1d242c;
+    --gum:#5a3a3a; --bone:#3a352c; --implant:#1f3452;
+    --ok:#73d6a0; --ok-bg:#16331f; --bad:#ff8f86; --bad-bg:#3e1b19; --warn:#f2c266; --warn-bg:#3a2d10;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10151b; --surface:#19212a; --ink:#e5eaf0; --muted:#98a4b0; --line:#2d3742;
+  --accent:#72aaf0; --width:#f0807a; --plate:#1d242c;
+  --gum:#5a3a3a; --bone:#3a352c; --implant:#1f3452;
+  --ok:#73d6a0; --ok-bg:#16331f; --bad:#ff8f86; --bad-bg:#3e1b19; --warn:#f2c266; --warn-bg:#3a2d10;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding:16px 16px 48px;display:flex;flex-direction:column;gap:12px}
+header{display:flex;flex-direction:column;gap:4px;padding:6px 0 2px}
+h1{font-size:21px;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:15px;margin:0;font-weight:700;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:0;max-width:72ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+details.card{padding:0;gap:0}
+details.card>summary{list-style:none;cursor:pointer;padding:13px 14px;display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::before{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s;flex:none;margin-right:2px}
+details.card[open]>summary::before{transform:rotate(45deg)}
+details.card>summary .hint{font-weight:500;font-size:12px;color:var(--muted);margin-left:auto}
+details.card>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{justify-content:space-between}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:7px 13px;font-size:14px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 11px;font-size:13px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn[disabled]{opacity:.5;cursor:default}
+.label{font-size:12px;color:var(--muted);font-weight:500}
+.jawblock{display:flex;flex-direction:column;gap:8px}
+.jawblock+.jawblock{border-top:1px dashed var(--line);padding-top:12px}
+.strip-wrap{overflow-x:auto;padding-bottom:4px}
+.strip{display:grid;grid-template-columns:repeat(7,minmax(40px,1fr)) 10px repeat(7,minmax(40px,1fr));gap:5px;min-width:600px}
+.strip .gap{border-left:2px dashed var(--accent);margin-left:4px}
+.tb{border:1.5px solid #9c8a62;background:#f1e8d4;color:#2a2418;border-radius:8px;padding:6px 0 5px;display:flex;flex-direction:column;align-items:center;gap:1px}
+.tb b{font-family:var(--font-num);font-size:15px}
+.tb span{font-size:11px;opacity:.75}
+.tb[data-s="I"]{background:var(--implant);border-color:var(--accent);color:var(--ink)}
+.tb[data-s="I"] span{color:var(--accent);font-weight:600;opacity:1}
+.tb[data-s="P"]{background:transparent;border-style:dashed;border-color:var(--muted);color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px;border:1.5px solid #9c8a62;background:#f1e8d4}
+.legend i.I{background:var(--implant);border-color:var(--accent)}
+.legend i.P{background:transparent;border-style:dashed;border-color:var(--muted)}
+.layers{display:flex;flex-wrap:wrap;gap:6px}
+.layer{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:4px 11px 4px 9px;font-size:12.5px;font-weight:500;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.layer::before{content:"";width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor}
+.layer[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}
+.layer[aria-pressed="true"]::before{background:var(--accent);border-color:var(--accent)}
+.svg-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--plate)}
+.svg-wrap svg{display:block}
+.legend-svg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+.k-cal{color:var(--width)}.k-ch{color:var(--accent)}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+table.review{min-width:700px}
+th,td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600}
+td input{width:64px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-family:var(--font-num)}
+.spec-global{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.spec-global label{display:flex;flex-direction:column;gap:4px}
+.spec-global input{width:86px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-family:var(--font-num)}
+.pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.nb{display:flex;flex-direction:column;gap:2px}
+.nb small{color:var(--muted)}
+.empty{color:var(--muted);font-size:13px}
+.jawtag{display:inline-block;font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-right:4px}
+.anat-in input{width:76px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-family:var(--font-num)}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.wgrid label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
+.wgrid input{padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-family:var(--font-num)}
+.wgrid input.mod{border-color:var(--width);color:var(--width)}
+.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.settings label{display:flex;flex-direction:column;gap:4px}
+.settings input{width:90px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-family:var(--font-num)}
+.anat-in{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;align-items:center}
+.ref{display:flex;flex-direction:column;gap:14px;font-size:14px}
+.ref section{display:flex;flex-direction:column;gap:6px;border-left:3px solid var(--line);padding-left:10px}
+.ref h3{font-size:14px;margin:0}
+.ref p,.ref ul{margin:0;max-width:72ch}
+.ref ul{padding-left:18px;display:flex;flex-direction:column;gap:3px}
+.ref .calc{background:var(--bg);border-radius:8px;padding:7px 10px;font-size:13px}
+.ref .cite{font-size:12px;color:var(--muted)}
+.ref a{color:var(--accent)}
+.lv{font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px}
+.lv.mod{background:var(--ok-bg);color:var(--ok)}
+.lv.low{background:var(--warn-bg);color:var(--warn)}
+.copybox{width:100%;min-height:150px;font-family:var(--font-num);font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:8px}
+.status{font-size:12.5px;color:var(--muted);min-height:1.2em}
+.brushbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg button[data-brush="I"][aria-pressed="true"]{background:var(--accent);color:#fff}
+.warnbox{display:flex;flex-direction:column;gap:5px;font-size:13px}
+.warnbox .w{display:flex;gap:8px;align-items:baseline}
+.warnbox .w .pill{flex:none}
+.warnbox .why{color:var(--muted)}
+.cases{display:flex;flex-direction:column;gap:6px}
+.case{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
+.case.cur{border-color:var(--accent)}
+.case small{color:var(--muted)}
+.casein{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.casein input{flex:1;min-width:180px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.svg-wrap.fit{overflow-x:hidden}
+.svg-wrap.fit svg{width:100%;height:auto}
+.overlay{position:fixed;inset:0;background:rgba(10,14,20,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.overlay.on{display:flex}
+.overlay .box{background:var(--surface);border-radius:12px;max-width:96vw;max-height:92vh;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.overlay img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+footer{font-size:12px;color:var(--muted);max-width:76ch}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>임플란트 식립 거리 계산기</h1>
+    <p class="sub">치아 근원심폭(접촉점 기준)으로 픽스처 중심 위치와 인접 구조와의 거리를 계산합니다. 악궁을 펴서 잰 값입니다.</p>
+  </header>
+
+  <details class="card" id="secCase" data-sec>
+    <summary>케이스 <span class="hint" id="caseHint"></span></summary>
+    <div class="body">
+      <div class="casein">
+        <input id="caseName" type="text" placeholder="환자·케이스 이름 (이니셜, 차트번호)" aria-label="환자·케이스 이름" maxlength="40">
+        <button class="btn primary" type="button" id="caseSave">저장</button>
+        <button class="btn" type="button" id="caseNew">새 케이스</button>
+      </div>
+      <p class="sub">이 기기의 브라우저에만 저장됩니다. 이름은 저장 이미지·PDF 머리글에도 들어갑니다.</p>
+      <div class="cases" id="caseList"></div>
+    </div>
+  </details>
+
+  <details class="card" id="secTeeth" data-sec>
+    <summary>치아 선택 <span class="hint">고른 상태로 칠하기</span></summary>
+    <div class="body">
+      <div class="row between">
+        <div class="seg" role="group" aria-label="보기">
+          <button id="viewU" type="button">상악</button>
+          <button id="viewL" type="button">하악</button>
+          <button id="viewB" type="button">상하악</button>
+        </div>
+        <div class="row">
+          <span class="label">폭 기준</span>
+          <div class="seg" role="group" aria-label="폭 기준">
+            <button id="prePros" type="button">보철</button>
+            <button id="preNat" type="button">자연치</button>
+          </div>
+        </div>
+      </div>
+      <div class="brushbar">
+        <span class="label">칠할 상태</span>
+        <div class="seg" role="group" aria-label="칠할 상태">
+          <button type="button" data-brush="I">임플란트</button>
+          <button type="button" data-brush="P">결손</button>
+          <button type="button" data-brush="N">자연치</button>
+        </div>
+        <span class="label">같은 상태를 다시 누르면 자연치로 돌아갑니다</span>
+      </div>
+      <div id="strips"></div>
+      <div class="legend">
+        <span><i></i>자연치</span><span><i class="I"></i>임플란트</span><span><i class="P"></i>결손·가공치</span>
+      </div>
+    </div>
+  </details>
+
+  <details class="card" id="secSpec" data-sec>
+    <summary>픽스처 규격 <span class="hint" id="specHint"></span></summary>
+    <div class="body">
+      <div class="table-wrap" id="specTable"></div>
+    </div>
+  </details>
+
+  <div class="card">
+    <div class="row between">
+      <h2 id="diagTitle">배치도</h2>
+      <div class="row">
+        <button class="btn" type="button" id="fitBtn"></button>
+        <button class="btn" type="button" data-export="png">PNG 저장</button>
+        <button class="btn" type="button" data-export="pdf">PDF 저장(인쇄용)</button>
+      </div>
+    </div>
+    <div class="layers" id="layers" role="group" aria-label="표시 레이어"></div>
+    <div class="svg-wrap" id="svgWrap"></div>
+    <div class="warnbox" id="warnBox"></div>
+    <div class="row between">
+      <div class="legend-svg">
+        <span class="k-cal">빨강: 보철 폭 · 치아 단위 치수</span>
+        <span class="k-ch">파랑: 중심 간 거리 · 정중선 누적</span>
+      </div>
+      <span class="status" id="exportStatus" role="status"></span>
+    </div>
+  </div>
+
+  <details class="card" id="secReview" data-sec>
+    <summary>픽스처별 검토 <span class="hint" id="revHint"></span></summary>
+    <div class="body">
+      <div class="table-wrap" id="implTable"></div>
+      <div class="settings">
+        <label><span class="label">임플란트–임플란트 최소 간격 (mm)</span><input id="thrII" type="number" step="0.1" min="0"></label>
+        <label><span class="label">자연치–임플란트 최소 간격 (mm)</span><input id="thrTI" type="number" step="0.1" min="0"></label>
+      </div>
+      <p class="sub">간격은 중심 거리에서 픽스처 반경을 뺀 값(플랫폼 가장자리 기준)입니다.</p>
+    </div>
+  </details>
+
+  <details class="card" id="secWidth" data-sec>
+    <summary>치아별 보철 폭 조정</summary>
+    <div class="body">
+      <div id="wgrids"></div>
+    </div>
+  </details>
+
+  <details class="card" id="secRef" data-sec>
+    <summary>해부학·거리 기준 근거</summary>
+    <div class="body">
+      <div class="anat-in" id="anatIn"></div>
+      <div class="ref" id="ref"></div>
+    </div>
+  </details>
+
+  <details class="card" id="secMemo" data-sec>
+    <summary>차트 메모·내보내기</summary>
+    <div class="body">
+      <div class="row between">
+        <span class="label">텍스트는 차트에 붙여 넣고, 이미지·PDF에는 배치도와 이 내용이 함께 들어갑니다.</span>
+        <div class="row">
+          <button class="btn primary" type="button" id="copyBtn">텍스트 복사</button>
+          <button class="btn" type="button" data-export="png">PNG 저장</button>
+          <button class="btn" type="button" data-export="pdf">PDF 저장</button>
+        </div>
+      </div>
+      <textarea class="copybox" id="copyBox" readonly aria-label="요약 텍스트"></textarea>
+    </div>
+  </details>
+
+  <footer>수술 계획 참고용입니다. 실제 위치는 CBCT·모형·수술 가이드로 확인하세요. 기본 폭은 첨부 차트의 보철 외형 폭(구치부)과 평균 치관 폭이고, 그림의 치관·치근 길이는 표준 해부학 평균을 쓴 묘사입니다.</footer>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="이미지 미리보기">
+  <div class="box">
+    <div class="row between"><b>이미지를 길게 누르거나 우클릭해서 저장하세요</b><button class="btn" type="button" id="ovClose">닫기</button></div>
+    <img id="ovImg" alt="식립 계획 이미지">
+  </div>
+</div>
+
+<script src="jspdf.umd.min.js"></script>
+
+<script id="logic">
+const ORDER={U:[17,16,15,14,13,12,11,21,22,23,24,25,26,27],L:[47,46,45,44,43,42,41,31,32,33,34,35,36,37]};
+const PRESET={
+  pros:{U:[8.5,6.5,7.5,7,7,10,9],L:[5,5.5,7,7,7,10,9]},
+  nat:{U:[8.5,6.5,7.5,7,7,10,8.5],L:[5,5.5,7,7,7,11,10.5]}
+};
+const DIA={U:[4,3.5,4,4,4,5,5],L:[3,3,4,4,4,5,5]};
+const TNAME=['','중절치','측절치','견치','제1소구치','제2소구치','제1대구치','제2대구치'];
+const EDENT_PRESET={2:[3],4:[2,4],6:[2,4,6],8:[1,3,4,6]};
+const idx=t=>t%10;
+const isRight=t=>{const q=Math.floor(t/10);return q===1||q===4;};
+const f2=v=>String(Math.round(v*100)/100);
+
+function compute(st,jaw){
+  const order=ORDER[jaw], P=PRESET[st.preset][jaw];
+  const w={}, base={};
+  order.forEach(t=>{const o=Number(st.over[t]);base[t]=o>0?o:P[idx(t)-1];w[t]=base[t];});
+  const runs=[];let cur=null;
+  order.forEach((t,i)=>{
+    if(st.teeth[t]!=='N'){if(!cur){cur={teeth:[],start:i};runs.push(cur);}cur.teeth.push(t);cur.end=i;}
+    else cur=null;
+  });
+  runs.forEach(r=>{
+    r.leftN=r.start>0?order[r.start-1]:null;
+    r.rightN=r.end<order.length-1?order[r.end+1]:null;
+    r.bounded=!!(r.leftN&&r.rightN);
+    r.key=jaw+':'+r.teeth.join('-');
+    r.hasImplant=r.teeth.some(t=>st.teeth[t]==='I');
+    r.spansMid=r.teeth.some(t=>idx(t)===1&&isRight(t))&&r.teeth.some(t=>idx(t)===1&&!isRight(t));
+  });
+  const pos={};
+  [true,false].forEach(right=>{
+    let acc=0;const sg=right?-1:1;
+    order.filter(t=>isRight(t)===right).sort((a,b)=>idx(a)-idx(b)).forEach(t=>{
+      const a=acc,b=acc+w[t];
+      pos[t]={x0:Math.min(sg*a,sg*b),x1:Math.max(sg*a,sg*b),c:sg*(a+w[t]/2)};
+      acc=b;
+    });
+  });
+  const dia=t=>{const d=Number(st.dia[t]);return d>0?d:DIA[jaw][idx(t)-1];};
+  const len=t=>{const d=Number(st.len[t]);return d>0?d:10;};
+  const pieces=(xa,xb)=>{
+    const lo=Math.min(xa,xb),hi=Math.max(xa,xb),out=[];
+    order.slice().sort((a,b)=>pos[a].x0-pos[b].x0).forEach(t=>{
+      const ov=Math.min(hi,pos[t].x1)-Math.max(lo,pos[t].x0);
+      if(ov>1e-6)out.push({t,len:ov,x0:Math.max(lo,pos[t].x0),x1:Math.min(hi,pos[t].x1)});
+    });
+    return out;
+  };
+  const chains=[],implants=[];
+  runs.filter(r=>r.hasImplant).forEach(r=>{
+    const pts=[];
+    if(r.leftN)pts.push({type:'T',t:r.leftN,x:pos[r.leftN].x1,label:r.leftN+' '+(isRight(r.leftN)?'근심면':'원심면')});
+    r.teeth.filter(t=>st.teeth[t]==='I').forEach(t=>pts.push({type:'I',t,x:pos[t].c,D:dia(t),label:'#'+t}));
+    if(r.spansMid)pts.push({type:'M',x:0,label:'정중선'});
+    if(r.rightN)pts.push({type:'T',t:r.rightN,x:pos[r.rightN].x0,label:r.rightN+' '+(isRight(r.rightN)?'원심면':'근심면')});
+    pts.sort((a,b)=>a.x-b.x);
+    const segs=[];for(let i=1;i<pts.length;i++)segs.push({a:pts[i-1],b:pts[i],d:pts[i].x-pts[i-1].x,pcs:pieces(pts[i-1].x,pts[i].x)});
+    chains.push({run:r,pts,segs});
+    const real=pts.filter(p=>p.type!=='M');
+    real.forEach((p,i)=>{
+      if(p.type!=='I')return;
+      const nb=q=>{
+        if(!q)return null;
+        const d=Math.abs(q.x-p.x);
+        const gap=q.type==='T'?d-p.D/2:d-p.D/2-q.D/2;
+        const thr=q.type==='T'?st.thrTI:st.thrII;
+        return {q,d,gap,thr,ok:gap>=thr-1e-9};
+      };
+      const lo=nb(real[i-1]||null),hi=nb(real[i+1]||null);
+      const right=isRight(p.t);
+      const flags=[];
+      if(p.D>w[p.t]-1)flags.push('Ø가 보철 폭에 비해 큼');
+      implants.push({jaw,t:p.t,D:p.D,L:len(p.t),w:w[p.t],c:p.x,mid:Math.abs(p.x),mes:right?hi:lo,dis:right?lo:hi,flags});
+    });
+  });
+  implants.sort((a,b)=>a.c-b.c);
+  return {jaw,w,base,pos,runs,chains,implants,dia,len,pieces};
+}
+</script>
+
+<script>
+const KEY='implant-calc-v3';
+const LAYERS=[['width','보철 폭'],['caliper','치아 단위 치수'],['chain','중심 간 거리'],['midline','정중선 누적'],['gap','픽스처 간격']];
+const SECS={secCase:false,secTeeth:true,secSpec:true,secReview:true,secWidth:false,secRef:false,secMemo:false};
+function defaultState(){
+  const teeth={};
+  ['U','L'].forEach(j=>ORDER[j].forEach(t=>{teeth[t]='N';}));
+  [14,15,16,17].forEach(t=>{teeth[t]='I';});
+  return {view:'U',preset:'pros',teeth,over:{},dia:{},len:{},mf:{},nasal:null,thrII:3,thrTI:1.5,
+    layers:{width:true,caliper:true,chain:true,midline:false,gap:false},open:Object.assign({},SECS),brush:'I',fit:true,caseName:''};
+}
+let st=defaultState();
+try{
+  const s=JSON.parse(localStorage.getItem(KEY));
+  if(s&&s.teeth){const d=defaultState();st=Object.assign(d,s);st.layers=Object.assign(d.layers,s.layers||{});st.open=Object.assign(d.open,s.open||{});}
+}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const jaws=()=>st.view==='B'?['U','L']:[st.view];
+const JN={U:'상악',L:'하악'};
+
+/* ---------- 그림 ---------- */
+const S=7; // px per mm
+const CUFF=3; // 커프(플랫폼→보철 마진) 고정 3 mm
+const ANAT={
+  U:{ch:[10.5,9,10,8.5,8.5,7.5,7],rl:[13,13,17,14,14,12.5,11.5],cr:[0.82,0.77,0.73,0.71,0.71,0.75,0.75]},
+  L:{ch:[9,9.5,11,8.5,8,7.5,7],rl:[12.5,14,16,14,14.5,14,13],cr:[0.7,0.7,0.77,0.71,0.71,0.8,0.8]}
+};
+const PAL_LIVE={ink:'var(--ink)',muted:'var(--muted)',accent:'var(--accent)',width:'var(--width)',plate:'var(--plate)',gum:'var(--gum)',bone:'var(--bone)',ok:'var(--ok)',bad:'var(--bad)'};
+const PAL_PRINT={ink:'#15202b',muted:'#5a6775',accent:'#1d5fb0',width:'#c0352d',plate:'#ffffff',gum:'#f1c9c4',bone:'#efe6d6',ok:'#1b7443',bad:'#ad2620'};
+const ttype=k=>k<=2?'inc':k===3?'can':k<=5?'pm':'mol';
+function spline(p){
+  const n=p.length,r=v=>Math.round(v*100)/100;
+  let d=`M${r(p[0][0])},${r(p[0][1])}`;
+  for(let i=0;i<n;i++){
+    const p0=p[(i-1+n)%n],p1=p[i],p2=p[(i+1)%n],p3=p[(i+2)%n];
+    d+=` C${r(p1[0]+(p2[0]-p0[0])/6)},${r(p1[1]+(p2[1]-p0[1])/6)} ${r(p2[0]-(p3[0]-p1[0])/6)},${r(p2[1]-(p3[1]-p1[1])/6)} ${r(p2[0])},${r(p2[1])}`;
+  }
+  return d+'Z';
+}
+// 하악 방향 로컬 좌표(교합면 y=0, 치근 +y). 상악은 그룹을 상하 반전.
+function crownPts(type,a,c,ch,nc,ovate){
+  const k=type==='mol'?0.07*ch:0.1*ch,bot=ovate?[0,ch+ovate]:[0,ch];
+  let p;
+  if(type==='inc'){const yC=0.2*ch;p=[[-c,ch-k],[-a*0.98,ch*0.52],[-a,yC],[-a*0.9,yC*0.22],[-a*0.5,ch*0.012],[a*0.5,ch*0.012],[a*0.9,yC*0.22],[a,yC],[a*0.98,ch*0.52],[c,ch-k]];}
+  else if(type==='can'){const yC=0.32*ch;p=[[-c,ch-k],[-a*0.96,ch*0.56],[-a,yC],[-a*0.72,yC*0.62],[-a*0.3,yC*0.24],[0,0],[a*0.3,yC*0.24],[a*0.72,yC*0.62],[a,yC],[a*0.96,ch*0.56],[c,ch-k]];}
+  else if(type==='pm'){const yC=0.28*ch;p=[[-c,ch-k],[-a*0.96,ch*0.56],[-a,yC],[-a*0.74,yC*0.42],[-a*0.32,yC*0.1],[0,0],[a*0.32,yC*0.1],[a*0.74,yC*0.42],[a,yC],[a*0.96,ch*0.56],[c,ch-k]];}
+  else{
+    const yC=0.25*ch;p=[[-c,ch-k],[-a*0.97,ch*0.56],[-a,yC],[-a*0.95,yC*0.38]];
+    const s0=-a*0.86,span=a*1.72;
+    for(let i=0;i<nc;i++){
+      p.push([s0+span*(i+0.5)/nc,ch*0.015+(i===nc-1&&nc===3?ch*0.03:0)]);
+      if(i<nc-1)p.push([s0+span*(i+1)/nc,ch*0.13]);
+    }
+    p.push([a*0.95,yC*0.38],[a,yC],[a*0.97,ch*0.56],[c,ch-k]);
+  }
+  if(ovate)p.push([c*0.6,ch+ovate*0.7]);
+  p.push(bot);
+  if(ovate)p.push([-c*0.6,ch+ovate*0.7]);
+  return p;
+}
+function rootPts(type,c,ch,rl,dx){
+  const k=type==='mol'?0.07*ch:0.1*ch,top=ch-k-ch*0.3;
+  if(type!=='mol')return [[-c,ch-k],[-c*0.9,ch+rl*0.33],[-c*0.45+dx*0.6,ch+rl*0.8],[dx,ch+rl],[c*0.45+dx*0.6,ch+rl*0.8],[c*0.9,ch+rl*0.33],[c,ch-k],[0,top]];
+  return [[-c,ch-k],[-c*1.03,ch+rl*0.36],[-c*0.82+dx,ch+rl*0.8],[-c*0.56+dx,ch+rl],[-c*0.3+dx,ch+rl*0.82],[-c*0.14,ch+rl*0.3],[0,ch+rl*0.2],[c*0.14,ch+rl*0.3],[c*0.3+dx,ch+rl*0.8],[c*0.54+dx,ch+rl*0.96],[c*0.8+dx,ch+rl*0.78],[c*1.03,ch+rl*0.36],[c,ch-k],[0,top]];
+}
+function fixturePath(D,L,y0){
+  const r0=D/2,rA=D*0.36,pitch=0.85*S,dep=0.26*S,collar=0.6*S,apexH=1.2*S;
+  const rAt=y=>r0-(r0-rA)*Math.pow(Math.max(0,(y-y0))/L,1.7);
+  const left=[[-r0,y0],[-r0,y0+collar]],thr=[];
+  for(let y=y0+collar;y<y0+L-apexH;y+=pitch){
+    const r=rAt(y);left.push([-r-0.01,y],[-r+dep,y+pitch*0.5]);
+    thr.push([-r+dep,y+pitch*0.5,rAt(y)-dep*0.3,y]);
+  }
+  const yb=y0+L-apexH,rb=rAt(yb),F=v=>v.toFixed(2);
+  let d=`M${F(left[0][0])},${F(left[0][1])}`;
+  left.slice(1).forEach(p=>{d+=` L${F(p[0])},${F(p[1])}`;});
+  d+=` L${F(-rb)},${F(yb)} Q${F(-rb)},${F(y0+L)} 0,${F(y0+L)} Q${F(rb)},${F(y0+L)} ${F(rb)},${F(yb)}`;
+  left.slice(1).reverse().forEach(p=>{d+=` L${F(-p[0])},${F(p[1])}`;});
+  d+=` L${F(r0)},${F(y0)} Z`;
+  return {d,thr};
+}
+function splineOpen(p){
+  const n=p.length,r=v=>Math.round(v*100)/100;let d='';
+  for(let i=0;i<n-1;i++){
+    const p0=p[Math.max(0,i-1)],p1=p[i],p2=p[i+1],p3=p[Math.min(n-1,i+2)];
+    d+=` C${r(p1[0]+(p2[0]-p0[0])/6)},${r(p1[1]+(p2[1]-p0[1])/6)} ${r(p2[0]-(p3[0]-p1[0])/6)},${r(p2[1]-(p3[1]-p1[1])/6)} ${r(p2[0])},${r(p2[1])}`;
+  }
+  return d;
+}
+// 커스텀 어버트먼트: 마진 바로 아래는 살짝 볼록(critical), 그 아래는 오목(subcritical)하게 좁아져 플랫폼으로
+function abutPath(rp,rm,yP,yM,coreTop){
+  const h=yP-yM,r=v=>Math.round(v*100)/100;
+  const side=[[rm,yM],[rm*0.985,yM+h*0.14],[rp+(rm-rp)*0.62,yM+h*0.42],[rp+(rm-rp)*0.16,yM+h*0.78],[rp,yP]];
+  const mir=side.map(q=>[-q[0],q[1]]).reverse();
+  return `M${r(-rm*0.78)},${r(coreTop)} L${r(rm*0.78)},${r(coreTop)} L${r(rm)},${r(yM)}`+splineOpen(side)+` L${r(-rp)},${r(yP)}`+splineOpen(mir)+' Z';
+}
+// 임플란트 크라운: 치관 외형은 그대로, 치경부는 어버트먼트 마진에 정확히 맞춤
+function implCrownPath(type,a,c,ch,nc,rm,yM){
+  const p=crownPts(type,a,c,ch,nc),mid=p.slice(1,p.length-2),r=v=>Math.round(v*100)/100;
+  const out=[[-rm,yM],...mid,[rm,yM]];
+  return `M${r(-rm)},${r(yM)}`+splineOpen(out)+` Q0,${r(yM+0.25*S)} ${r(-rm)},${r(yM)} Z`;
+}
+function toothSVG(R,jaw,t,state,pre){
+  const k=idx(t),type=ttype(k),A=ANAT[jaw];
+  const w=R.w[t]*S,a=w/2,c=a*A.cr[k-1],ch=A.ch[k-1]*S,rl=A.rl[k-1]*S;
+  const distal=isRight(t)?-1:1,dx=distal*w*0.05;
+  const nc=type==='mol'?(jaw==='U'?2:3):0;
+  const shine=`<path d="${spline(crownPts(type,a*0.62,c*0.5,ch*0.7,nc))}" transform="translate(${(-a*0.18).toFixed(2)},${(ch*0.06).toFixed(2)})" fill="url(#${pre}Shine)"/>`;
+  let g='';
+  if(state==='N'){
+    if(type==='mol'&&jaw==='U')g+=`<path d="${spline(rootPts('pm',c*0.55,ch,rl*1.08,0))}" fill="url(#${pre}RootBack)"/>`;
+    g+=`<path d="${spline(rootPts(type,c,ch,rl,dx))}" fill="url(#${pre}Root)" stroke="#a88c4e" stroke-width=".7"/>`;
+    g+=`<path d="${spline(crownPts(type,a,c,ch,nc))}" fill="url(#${pre}Enamel)" stroke="#9aa0a6" stroke-width=".7"/>`+shine;
+  }else if(state==='I'){
+    const D=R.dia(t)*S,L=R.len(t)*S,cuff=CUFF*S;
+    const yM=ch-0.3*S,yP=yM+cuff;
+    const fx=fixturePath(D,L,yP);
+    const rp=D/2*0.8,rm=c*0.94;
+    const bad=FAIL.has(t);
+    g+=`<path d="${fx.d}" fill="url(#${pre}Ti)" stroke="${bad?'#d1342b':'#545c65'}" stroke-width="${bad?2.2:.7}"/>`;
+    fx.thr.forEach(q=>{g+=`<line x1="${q[0].toFixed(1)}" y1="${q[1].toFixed(1)}" x2="${q[2].toFixed(1)}" y2="${q[3].toFixed(1)}" stroke="#5d656e" stroke-width=".55" opacity=".55"/>`;});
+    g+=`<path d="${abutPath(rp,rm,yP,yM,ch*0.45)}" fill="url(#${pre}Abut)" stroke="#6f777f" stroke-width=".7"/>`;
+    g+=`<path d="M${(-rm*0.9).toFixed(2)},${(yM+0.35*S).toFixed(2)} Q0,${(yM+0.55*S).toFixed(2)} ${(rm*0.9).toFixed(2)},${(yM+0.35*S).toFixed(2)}" fill="none" stroke="#fff" stroke-width=".9" opacity=".55"/>`;
+    g+=`<line x1="${(-(D/2+0.9*S)).toFixed(2)}" y1="${(yP+0.25*S).toFixed(2)}" x2="${(D/2+0.9*S).toFixed(2)}" y2="${(yP+0.25*S).toFixed(2)}" stroke="#c2a878" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>`;
+    g+=`<path d="${implCrownPath(type,a,c,ch,nc,rm,yM)}" fill="url(#${pre}Ceram)" stroke="#8f99a3" stroke-width=".8"/>`+shine;
+  }else{
+    g+=`<path d="${spline(crownPts(type,a,c,ch,nc,1.0*S))}" fill="url(#${pre}Ceram)" fill-opacity=".9" stroke="#a9b1b9" stroke-width=".8" stroke-dasharray="3 2"/>`+shine;
+  }
+  return g;
+}
+function svgDefs(pal,pre){
+  return `<defs>
+    <linearGradient id="${pre}Enamel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f5f7f8"/><stop offset=".55" stop-color="#e2e6e9"/><stop offset="1" stop-color="#cfcabd"/></linearGradient>
+    <linearGradient id="${pre}Ceram" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#eef1f3"/><stop offset="1" stop-color="#e4ddd0"/></linearGradient>
+    <radialGradient id="${pre}Shine" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="${pre}Root" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#cfae66"/><stop offset=".45" stop-color="#f1dfaa"/><stop offset="1" stop-color="#c9a65d"/></linearGradient>
+    <linearGradient id="${pre}RootBack" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#bf9d58" stop-opacity=".55"/><stop offset="1" stop-color="#d9c08a" stop-opacity=".55"/></linearGradient>
+    <linearGradient id="${pre}Ti" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6e767f"/><stop offset=".35" stop-color="#d9dee3"/><stop offset=".55" stop-color="#a7afb7"/><stop offset="1" stop-color="#5f676f"/></linearGradient>
+    <linearGradient id="${pre}Abut" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7b838b"/><stop offset=".22" stop-color="#c3c9cf"/><stop offset=".42" stop-color="#f4f6f8"/><stop offset=".6" stop-color="#cdd3d8"/><stop offset=".85" stop-color="#959da5"/><stop offset="1" stop-color="#6d757d"/></linearGradient>
+    <linearGradient id="${pre}Soft" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ea9f9c" stop-opacity=".5"/><stop offset=".7" stop-color="#e6aaa2" stop-opacity=".32"/><stop offset="1" stop-color="#e6aaa2" stop-opacity=".08"/></linearGradient>
+    <linearGradient id="${pre}GumU" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${pal.gum}" stop-opacity="0"/><stop offset=".12" stop-color="${pal.gum}" stop-opacity=".55"/><stop offset=".3" stop-color="${pal.bone}" stop-opacity=".9"/><stop offset="1" stop-color="${pal.bone}" stop-opacity=".2"/></linearGradient>
+    <linearGradient id="${pre}GumL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${pal.gum}" stop-opacity="0"/><stop offset=".12" stop-color="${pal.gum}" stop-opacity=".55"/><stop offset=".3" stop-color="${pal.bone}" stop-opacity=".9"/><stop offset="1" stop-color="${pal.bone}" stop-opacity=".2"/></linearGradient>
+  </defs><style>
+    text{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+    .tnum{font-size:11px;fill:${pal.muted};text-anchor:middle;font-weight:600}
+    .tw{font-size:11px;fill:#b3261e;text-anchor:middle;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:2.5px}
+    .guide{stroke:${pal.accent};stroke-width:.8;stroke-dasharray:2 3;opacity:.5}
+    .mid{stroke:${pal.accent};stroke-width:1.2;stroke-dasharray:6 4;opacity:.75}
+    .dim{stroke:${pal.accent};stroke-width:1.2}.dim.cal{stroke:${pal.width}}
+    .tick{stroke:${pal.accent};stroke-width:1}.tick.cal{stroke:${pal.width}}
+    .dl{font-size:12px;fill:${pal.accent};text-anchor:middle;font-weight:600}
+    .dl.cal{fill:${pal.width};font-size:11px}.dl.ml{font-size:11px}
+    .rowlab{font-size:10px;fill:${pal.muted}}
+    .ml-lab{font-size:10px;fill:${pal.accent};text-anchor:middle}
+    .jawlab{font-size:12px;font-weight:700;fill:${pal.muted}}
+    .gapt{font-size:10.5px;font-weight:700;text-anchor:middle;paint-order:stroke;stroke:${pal.plate};stroke-width:3px}
+  </style>`;
+}
+// 한 악궁 블록. 치수 행은 항상 치근(근단) 쪽.
+function drawJaw(R,jaw,y0,X,W,pal,pre){
+  const order=ORDER[jaw],up=jaw==='U',Ly=st.layers;
+  const ZH=Math.max(30,...order.filter(t=>st.teeth[t]==='I').map(t=>ANAT[jaw].ch[idx(t)-1]+CUFF+R.len(t)+3))*S;
+  const rows=[];if(Ly.caliper)rows.push('cal');if(Ly.chain)rows.push('chain');
+  const midN=Ly.midline?R.implants.length:0;
+  const rowsH=rows.length*32+midN*22+(rows.length||midN?8:0);
+  let occ,toothTop,numY,end;
+  if(up){toothTop=y0+rowsH+8;occ=toothTop+ZH;numY=occ+15;end=occ+22;}
+  else{numY=y0+12;occ=y0+22;toothTop=occ;end=occ+ZH+rowsH+10;}
+  const sg=up?-1:1,Y=mm=>occ+sg*mm*S;
+  const rowY=i=>up?toothTop-8-i*32:occ+ZH+14+i*32;
+  const midY=j=>up?toothTop-8-rows.length*32-j*22:occ+ZH+14+rows.length*32+j*22;
+  const rowsY={};rows.forEach((r,i)=>{rowsY[r]=rowY(i);});
+  let g='';
+  const gy0=Y(7.2),gy1=Y(29);
+  g+=`<rect x="20" y="${Math.min(gy0,gy1)}" width="${W-40}" height="${Math.abs(gy1-gy0)}" fill="url(#${pre}Gum${jaw})" rx="10"/>`;
+  g+=`<text x="8" y="${up?toothTop+14:occ+ZH-4}" class="jawlab">${JN[jaw]}</text>`;
+  order.forEach(t=>{
+    const p=R.pos[t];
+    g+=`<g transform="translate(${X(p.c).toFixed(2)},${occ}) scale(1,${up?-1:1})">${toothSVG(R,jaw,t,st.teeth[t],pre)}</g>`;
+    g+=`<text x="${X(p.c)}" y="${numY}" class="tnum">${t}</text>`;
+  });
+  if(Ly.width)order.forEach(t=>{
+    const ch=ANAT[jaw].ch[idx(t)-1];
+    g+=`<text x="${X(R.pos[t].c)}" y="${Y(ch*0.5)+4}" class="tw">${f2(R.w[t])}</text>`;
+  });
+  order.filter(t=>st.teeth[t]==='I').forEach(t=>{
+    const ch=ANAT[jaw].ch[idx(t)-1],yy=Y(ch+CUFF+R.len(t)+1.5);
+    g+=`<text x="${X(R.pos[t].c)}" y="${yy+(up?0:4)}" class="tnum">Ø${f2(R.dia(t))}×${f2(R.len(t))}</text>`;
+  });
+  const contactY=t=>Y(ANAT[jaw].ch[idx(t)-1]*0.27);
+  const farRow=rows.length?rowsY[rows[rows.length-1]]:null;
+  R.chains.forEach(ch=>{
+    if(farRow!==null)ch.pts.forEach(p=>{
+      const ys=p.type==='M'?Y(0):contactY(p.t);
+      g+=`<line x1="${X(p.x)}" y1="${ys}" x2="${X(p.x)}" y2="${farRow+(up?-6:6)}" class="guide"/>`;
+    });
+    if(Ly.caliper){
+      const y=rowsY.cal,xs=ch.pts.map(p=>X(p.x));let flip=false;
+      g+=`<line x1="${Math.min(...xs)}" y1="${y}" x2="${Math.max(...xs)}" y2="${y}" class="dim cal"/>`;
+      ch.segs.forEach(sgm=>sgm.pcs.forEach(pc=>{
+        g+=`<line x1="${X(pc.x0)}" y1="${y-5}" x2="${X(pc.x0)}" y2="${y+5}" class="tick cal"/><line x1="${X(pc.x1)}" y1="${y-5}" x2="${X(pc.x1)}" y2="${y+5}" class="tick cal"/>`;
+        const narrow=(X(pc.x1)-X(pc.x0))<32;flip=narrow?!flip:false;
+        g+=`<text x="${(X(pc.x0)+X(pc.x1))/2}" y="${flip?y+14:y-4}" class="dl cal">${f2(pc.len)}</text>`;
+      }));
+    }
+    if(Ly.chain){
+      const y=rowsY.chain,xs=ch.pts.map(p=>X(p.x));
+      g+=`<line x1="${Math.min(...xs)}" y1="${y}" x2="${Math.max(...xs)}" y2="${y}" class="dim"/>`;
+      ch.pts.forEach(p=>{g+=`<line x1="${X(p.x)}" y1="${y-6}" x2="${X(p.x)}" y2="${y+6}" class="tick"/>`;});
+      let fl=false;ch.segs.forEach(sgm=>{const nw=(X(sgm.b.x)-X(sgm.a.x))<36;fl=nw?!fl:false;g+=`<text x="${(X(sgm.a.x)+X(sgm.b.x))/2}" y="${fl?y+15:y-5}" class="dl">${f2(sgm.d)}</text>`;});
+    }
+    if(Ly.gap){
+      const real=ch.pts.filter(p=>p.type!=='M');
+      for(let i=1;i<real.length;i++){
+        const a=real[i-1],b=real[i];if(a.type!=='I'&&b.type!=='I')continue;
+        const ea=a.type==='I'?a.x+a.D/2:a.x,eb=b.type==='I'?b.x-b.D/2:b.x,gap=eb-ea;
+        const thr=(a.type==='T'||b.type==='T')?st.thrTI:st.thrII,ok=gap>=thr-1e-9,col=ok?pal.ok:pal.bad;
+        const ky=idx(a.type==='I'?a.t:b.t),yy=Y(ANAT[jaw].ch[ky-1]+CUFF+0.8);
+        g+=`<line x1="${X(ea)}" y1="${yy}" x2="${X(eb)}" y2="${yy}" stroke="${col}" stroke-width="1.6"/>`;
+        g+=`<text x="${(X(ea)+X(eb))/2}" y="${yy+(up?-4:12)}" class="gapt" fill="${col}">${f2(gap)}</text>`;
+      }
+    }
+  });
+  if(Ly.caliper&&R.chains.length)g+=`<text x="4" y="${rowsY.cal+4}" class="rowlab">치아</text>`;
+  if(Ly.chain&&R.chains.length)g+=`<text x="4" y="${rowsY.chain+4}" class="rowlab">중심</text>`;
+  if(Ly.midline)R.implants.slice().sort((a,b)=>a.mid-b.mid).forEach((m,j)=>{
+    const y=midY(j);
+    g+=`<line x1="${X(0)}" y1="${y}" x2="${X(m.c)}" y2="${y}" class="dim"/><line x1="${X(m.c)}" y1="${y-5}" x2="${X(m.c)}" y2="${y+5}" class="tick"/>`;
+    g+=`<text x="${(X(0)+X(m.c))/2}" y="${y-4}" class="dl ml">#${m.t} ${f2(m.mid)}</text>`;
+  });
+  return {g,h:end-y0};
+}
+function drawAll(Rs,pal,pre){
+  let xmin=0,xmax=0;
+  Rs.forEach(R=>ORDER[R.jaw].forEach(t=>{xmin=Math.min(xmin,R.pos[t].x0);xmax=Math.max(xmax,R.pos[t].x1);}));
+  const pad=34,X=x=>pad+(x-xmin)*S,W=Math.round((xmax-xmin)*S+pad*2);
+  let y=8,body='';
+  Rs.forEach((R,i)=>{
+    if(i)y+=14;
+    const b=drawJaw(R,R.jaw,y,X,W,pal,pre);body+=b.g;y+=b.h;
+  });
+  const H=Math.round(y+22);
+  const inner=svgDefs(pal,pre)+`<line x1="${X(0)}" y1="4" x2="${X(0)}" y2="${H-14}" class="mid"/><text x="${X(0)}" y="${H-3}" class="ml-lab">정중선</text>`+body;
+  return {inner,W,H};
+}
+
+/* ---------- 화면 ---------- */
+function nbCell(n){
+  if(!n)return '<span class="empty">없음</span>';
+  const what=n.q.type==='T'?n.q.label:'#'+n.q.t+' 중심';
+  const kind=n.q.type==='T'?'치아':'임플';
+  return `<div class="nb"><span>${esc(what)} <b class="num">${f2(n.d)}</b></span><span><span class="pill ${n.ok?'ok':'bad'}">간격 ${f2(n.gap)}</span> <small>${kind} 기준 ${f2(n.thr)}</small></span></div>`;
+}
+let RS=[],FAIL=new Set();
+function render(){
+  RS=jaws().map(j=>compute(st,j));
+  const all=RS.flatMap(R=>R.implants);
+  FAIL=new Set(all.filter(m=>(m.mes&&!m.mes.ok)||(m.dis&&!m.dis.ok)).map(m=>m.t));
+  document.querySelectorAll('[data-brush]').forEach(b=>b.setAttribute('aria-pressed',st.brush===b.dataset.brush));
+  $('fitBtn').textContent=st.fit?'원래 크기':'화면 맞춤';
+  $('svgWrap').classList.toggle('fit',!!st.fit);
+  if(document.activeElement!==$('caseName'))$('caseName').value=st.caseName||'';
+  renderCases();
+  ['U','L','B'].forEach(v=>$('view'+v).setAttribute('aria-pressed',st.view===v));
+  $('prePros').setAttribute('aria-pressed',st.preset==='pros');$('preNat').setAttribute('aria-pressed',st.preset==='nat');
+  const lab={N:'자연치',I:'임플',P:'결손'};
+  $('strips').innerHTML=jaws().map(j=>`<div class="jawblock">
+    ${st.view==='B'?`<b>${JN[j]}</b>`:''}
+    <div class="strip-wrap"><div class="strip">${ORDER[j].map((t,i)=>(i===7?'<div class="gap" aria-hidden="true"></div>':'')+
+      `<button type="button" class="tb" data-t="${t}" data-s="${st.teeth[t]}" aria-label="${t} ${lab[st.teeth[t]]}"><b>${t}</b><span>${lab[st.teeth[t]]}</span></button>`).join('')}</div></div>
+    <div class="row">
+      <button class="btn" type="button" data-all="N" data-jaw="${j}">모두 자연치</button>
+      <button class="btn" type="button" data-all="P" data-jaw="${j}">무치악</button>
+    </div></div>`).join('');
+
+  $('specHint').textContent=all.length?`${all.length}개`:'';
+  $('specTable').innerHTML=all.length?`<table><thead><tr><th>부위</th><th>Ø (mm)</th><th>길이 (mm)</th><th>보철 폭</th></tr></thead><tbody>${
+    all.map(m=>`<tr><td>${st.view==='B'?`<span class="jawtag">${JN[m.jaw]}</span>`:''}<b class="num">#${m.t}</b> <small class="label">${TNAME[idx(m.t)]}</small></td>
+      <td><input type="number" step="0.1" min="2" max="8" data-dia="${m.t}" value="${f2(m.D)}" aria-label="${m.t} 직경"></td>
+      <td><input type="number" step="0.5" min="4" max="18" data-len="${m.t}" value="${f2(m.L)}" aria-label="${m.t} 길이"></td>
+      <td class="num">${f2(m.w)}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">임플란트로 지정한 치아가 없습니다.</p>';
+
+  $('layers').innerHTML=LAYERS.map(([k,n])=>`<button type="button" class="layer" data-layer="${k}" aria-pressed="${!!st.layers[k]}">${n}</button>`).join('');
+  $('diagTitle').textContent=(st.view==='B'?'상하악':JN[st.view])+' 배치도';
+  const d=drawAll(RS,PAL_LIVE,'live');
+  renderWarn(all);
+  $('svgWrap').innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" width="${d.W}" height="${d.H}" viewBox="0 0 ${d.W} ${d.H}" role="img" aria-label="식립 배치도">${d.inner}</svg>`;
+
+  $('implTable').innerHTML=all.length?`<table class="review"><thead><tr><th>부위</th><th>Ø×길이</th><th>정중선→중심</th><th>근심측</th><th>원심측</th><th>확인</th></tr></thead><tbody>${
+    all.map(m=>`<tr><td>${st.view==='B'?`<span class="jawtag">${JN[m.jaw]}</span>`:''}<b class="num">#${m.t}</b><br><small class="label">${TNAME[idx(m.t)]}</small></td>
+    <td class="num">${f2(m.D)}×${f2(m.L)}</td><td class="num">${f2(m.mid)}</td>
+    <td>${nbCell(m.mes)}</td><td>${nbCell(m.dis)}</td>
+    <td>${m.flags.map(f=>`<span class="pill warn">${esc(f)}</span>`).join(' ')||'<span class="empty">–</span>'}</td></tr>`).join('')
+  }</tbody></table>`:'<p class="empty">검토할 픽스처가 없습니다.</p>';
+  $('thrII').value=st.thrII;$('thrTI').value=st.thrTI;
+
+  $('wgrids').innerHTML=jaws().map(j=>{
+    const P=PRESET[st.preset][j];
+    return `<div class="jawblock"><div class="row between"><b>${JN[j]}</b><button class="btn" type="button" data-wreset="${j}">초기화</button></div><div class="wgrid">${ORDER[j].map(t=>{
+      const o=Number(st.over[t]);
+      return `<label>${t} ${TNAME[idx(t)]}<input type="number" step="0.1" min="1" data-w="${t}" class="${o>0?'mod':''}" value="${o>0?o:''}" placeholder="${f2(P[idx(t)-1])}"></label>`;
+    }).join('')}</div></div>`;
+  }).join('');
+
+  renderRef();
+  $('copyBox').value=summary();
+  document.querySelectorAll('details[data-sec]').forEach(el=>{el.open=!!st.open[el.id];});
+  save();
+}
+
+const FLAG_WHY={
+  'Ø가 보철 폭에 비해 큼':'직경이 보철 폭 −1 mm를 넘어 근원심 여유가 거의 없습니다.'
+};
+function renderWarn(all){
+  const out=[],seen=new Set();
+  all.forEach(m=>[m.mes,m.dis].forEach(n=>{
+    if(!n||n.ok)return;
+    const key=n.q.type==='I'?[m.t,n.q.t].sort().join('-'):m.t+'-'+n.q.t;
+    if(seen.has(key))return;seen.add(key);
+    const tgt=n.q.type==='T'?`${n.q.t} 자연치`:`#${n.q.t}`;
+    const why=n.q.type==='T'
+      ?`플랫폼 가장자리–치아 면 ${f2(n.gap)} mm, 기준 ${f2(n.thr)} mm보다 ${f2(n.thr-n.gap)} mm 부족. 직경을 줄이거나 위치를 옮기세요.`
+      :`두 플랫폼 사이 ${f2(n.gap)} mm, 기준 ${f2(n.thr)} mm보다 ${f2(n.thr-n.gap)} mm 부족. 치간 골 소실 위험(Tarnow 2000). 직경을 줄이거나 개수를 조정하세요.`;
+    out.push(`<div class="w"><span class="pill bad">#${m.t} ↔ ${tgt}</span><span class="why">${why}</span></div>`);
+  }));
+  all.forEach(m=>m.flags.forEach(f=>{
+    const base=f.replace('(추정)','');
+    out.push(`<div class="w"><span class="pill warn">#${m.t} ${esc(f)}</span><span class="why">${FLAG_WHY[base]||''}</span></div>`);
+  }));
+  $('warnBox').innerHTML=out.join('');
+  const nb=seen.size,nf=all.reduce((a,m)=>a+m.flags.length,0);
+  $('revHint').innerHTML=(nb?`<span class="pill bad">간격 부족 ${nb}</span> `:'')+(nf?`<span class="pill warn">확인 ${nf}</span>`:'');
+}
+const CASEKEY='implant-cases-v1';
+function loadCases(){try{return JSON.parse(localStorage.getItem(CASEKEY))||{};}catch(e){return {};}}
+function storeCases(c){try{localStorage.setItem(CASEKEY,JSON.stringify(c));return true;}catch(e){return false;}}
+let delArm=null;
+function renderCases(){
+  const c=loadCases(),names=Object.keys(c).sort((a,b)=>(c[b].savedAt||0)-(c[a].savedAt||0));
+  $('caseHint').textContent=(st.caseName?st.caseName+' · ':'')+`저장 ${names.length}개`;
+  $('caseList').innerHTML=names.length?names.map(n=>{
+    const d=new Date(c[n].savedAt),ds=`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `<div class="case${n===st.caseName?' cur':''}"><span><b>${esc(n)}</b> <small>${ds}</small></span><span class="row">
+      <button class="btn" type="button" data-cload="${esc(n)}">불러오기</button>
+      <button class="btn" type="button" data-cdel="${esc(n)}">${delArm===n?'정말 삭제':'삭제'}</button></span></div>`;
+  }).join(''):'<p class="empty">저장한 케이스가 없습니다.</p>';
+}
+const KEEP=['open','fit','layers','brush'];
+function snapshot(){const s=JSON.parse(JSON.stringify(st));KEEP.forEach(k=>delete s[k]);return s;}
+function summary(){
+  const L=[`임플란트 식립 계획${st.caseName?' · '+st.caseName:''} (폭 기준: ${st.preset==='pros'?'보철':'자연치'})`];
+  RS.forEach(R=>{
+    L.push(`[${JN[R.jaw]}] 식립: ${R.implants.map(m=>m.t).join(', ')||'없음'}`);
+    R.chains.forEach(ch=>{
+      let s='  ';ch.pts.forEach((p,i)=>{if(i>0)s+=` -${f2(ch.segs[i-1].d)}- `;s+=p.label;});
+      L.push(s);
+    });
+    R.implants.forEach(m=>{
+      const f=n=>n?`${n.q.type==='T'?n.q.label:'#'+n.q.t} ${f2(n.d)} (간격 ${f2(n.gap)}${n.ok?'':' 부족'})`:'없음';
+      L.push(`  #${m.t} Ø${f2(m.D)}x${f2(m.L)} / 정중선 ${f2(m.mid)} / 근심 ${f(m.mes)} / 원심 ${f(m.dis)}${m.flags.length?' / 확인: '+m.flags.join(', '):''}`);
+    });
+  });
+  return L.join('\n');
+}
+
+function renderRef(){
+  const RU=RS.find(R=>R.jaw==='U'),RL=RS.find(R=>R.jaw==='L');
+  const ab=(R,t)=>Math.abs(R.pos[t].c),edge=(R,t)=>Math.max(Math.abs(R.pos[t].x0),Math.abs(R.pos[t].x1));
+  let inputs='';
+  if(RU)inputs+=`<label>비익폭(콧망울 폭) 실측 <input type="number" step="0.5" min="20" max="50" id="nasalIn" value="${st.nasal||''}" placeholder="mm"> mm</label>`;
+  $('anatIn').innerHTML=inputs;
+
+  let h=`<section><h3>근원심 거리 기준<span class="lv mod">임상 연구 + 합의</span></h3>
+  <ul>
+    <li>Tarnow 2000: 인접 임플란트 36쌍 방사선 계측에서 플랫폼 간 3 mm 초과 군의 치간 골 소실 0.45 mm, 3 mm 이하 군 1.04 mm. 측방 골 소실은 근심 1.34 mm, 원심 1.40 mm.</li>
+    <li>ITI 3차 합의(Buser 2004): 인접 치근과의 위험 구간은 약 1.0–1.5 mm 폭, 임플란트 사이는 3 mm 이상 권장. 저자들은 3 mm를 뒷받침하는 임상·방사선 연구가 당시 없었다고 명시했습니다.</li>
+    <li>같은 논문의 단일치 결손 폭: 4.8 mm 숄더는 최소 7.0 mm(이상적 8–9 mm), 3.5 mm narrow neck은 최소 5.5 mm(이상적 6–7 mm).</li>
+    <li>협설: 숄더는 인접치 출현점보다 약 1 mm 구개측, 약 2 mm 넘게 구개측이면 위험 구간. 수직: 계획한 순측 치은연 약 2 mm 하방(퇴축 없으면 반대측 CEJ 약 1 mm 하방), 3 mm 이상 깊으면 위험 구간.</li>
+  </ul>
+  <p class="cite"><a href="https://pubmed.ncbi.nlm.nih.gov/10807116/">Tarnow 2000, J Periodontol 71:546</a> · <a href="https://www.iti.org/iti-academy-consensus/CC3_Group2_2.pdf">Buser, Martin, Belser 2004, IJOMI 19(Suppl):43 (PDF)</a> · <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10264275/">Chen & Darby 2023 전임상</a></p></section>`;
+  if(RU){
+    const can=ab(RU,13),canD=edge(RU,13),ant=2*(RU.w[11]+RU.w[12]+RU.w[13]/2),nas=Number(st.nasal);
+    h+=`<section><h3>상악 · 정중선과 절치유두<span class="lv mod">한국인 계측 포함</span></h3>
+    <ul>
+      <li>한국 성인 유치악 60명: 절치유두 후방점→중절치 절단연 평균 11.20 mm(남 11.77, 여 10.55), 유두 후방점→견치 연결선 2.52 mm.</li>
+      <li>서울대 3D 가상모델: 유두 후방 경계→중절치 정사영 거리 11.96 ± 1.37 mm, 성별 차이 없음.</li>
+      <li>Mavroskoufis & Ritchie 1981(64명): 중절치 순면은 유두 후방 경계에서 약 10 mm 전방, 견치 첨두는 유두 후방 경계를 지나는 가로선 위.</li>
+      <li>총의치 착용자에서 중절치는 자연치 시절보다 유두에 약 3 mm 가깝게 배열(Isa 2012).</li>
+      <li>절치공은 대개 절치유두 바로 아래, 중절치 4–5 mm 후방. 11·21 식립 시 CBCT로 절치관 폭과 순측골 확인.</li>
+    </ul>
+    <p class="cite"><a href="https://koreascience.or.kr/article/JAKO200710103470341.page">이준석 2007 (KoreaScience)</a> · <a href="https://s-space.snu.ac.kr/handle/10371/80473">Park, Lee, Paik 2007, J Prosthet Dent 98:312</a> · <a href="https://searchworks.jioinstitute.edu.in/articles/cmedm__6941015">Mavroskoufis & Ritchie 1981, J Prosthet Dent 45:592</a> · <a href="https://www.jstage.jst.go.jp/article/josnusd/54/2/54_159/_article/-char/en">Isa 2012, J Oral Sci</a> · <a href="https://journals.viamedica.pl/folia_morphologica/article/download/FM.a2018.0013/43090">Folia Morphol 2018</a></p></section>
+    <section><h3>상악 · 콧망울과 견치<span class="lv low">연구마다 결과 다름</span></h3>
+    <p class="calc">현재 폭 기준: 정중선→견치 첨두(중앙) <b class="num">${f2(can)}</b> mm, →견치 원심면 <b class="num">${f2(canD)}</b> mm (악궁 따라). 4절치+견치 근심 절반 합 <b class="num">${f2(ant)}</b> mm.${nas>0?` 비익폭 ${f2(nas)} + 7 = 목표 <b class="num">${f2(nas+7)}</b> mm, 차이 <b class="num">${(ant-(nas+7)>=0?'+':'')+f2(ant-(nas+7))}</b> mm.`:' 비익폭을 넣으면 Mavroskoufis 공식(비익폭 + 7 mm)과 비교합니다.'}</p>
+    <ul>
+      <li>Mavroskoufis & Ritchie 1981: 견치 첨두 간 거리는 비익폭과 같고, 4절치와 견치 근심 절반의 폭 합은 비익폭 + 7 mm.</li>
+      <li>Srimaneekarn 2022(태국인 200명): 비익폭이 견치간 거리보다 넓었고, 콧망울 수직선(A line)은 남성에서 견치 원심 접촉점과 일치, 여성에서는 첨두와 원심 접촉점 사이.</li>
+      <li>상관 정도는 집단마다 다릅니다. 인도인에서는 높았지만 브라질·영국·미국 연구에서는 유의하지 않았고, Hoffman 1986은 견치간 거리가 비익폭보다 약 3% 크다고 보고했습니다.</li>
+    </ul>
+    <p class="cite"><a href="https://pubmed.ncbi.nlm.nih.gov/33468316/">Srimaneekarn 2022, J Prosthet Dent</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8282807">본문·선행연구 정리</a></p></section>
+    <section><h3>상악 · 상악동 전벽<span class="lv mod">CT 연구</span></h3>
+    <p>임플란트 계획 환자 101명 CT에서 상악동 전방 경계는 제1소구치 부위(49%), 후방 경계는 제2대구치 부위(84%)가 가장 흔했고, 격벽은 47%에서 보였습니다.</p>
+    <p class="cite"><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3886045">상악동 CT 연구(101명, Leuven)</a></p></section>`;
+  }
+  if(RL){
+    h+=`<section><h3>하악 · 이공과 anterior loop<span class="lv mod">한국인 CBCT·해부 자료</span></h3>
+    <ul>
+      <li>한국인 CBCT 100례(KJOMR 2009): 이공은 제2소구치 근단 하방 78%, 크기 폭 4.6 ± 1.0 mm·높이 3.0 ± 0.6 mm, anterior loop 4.0 ± 1.2 mm. 이공 최전방에서 4 mm를 안전 기준으로 권장.</li>
+      <li>한국인 사체 32 편측 하악(Kim & Hur 2025): 제2소구치 하방 75.0%, 제2소구치–제1대구치 사이 15.6%. 이공→정중선 26.5 ± 2.3 mm(20.8–31.2), 하연까지 15.5 ± 1.6 mm. 신경 상방은 보통 2 mm 이상 안전거리.</li>
+      <li>CBCT 체계적 고찰: 두 소구치 사이(50.4–61.95%) 또는 제2소구치 근단(50.3–57.9%).</li>
+      <li>이란인 CBCT: 이공 전연→정중선 우 25.86 mm, 좌 25.53 mm. 사체·CBCT 계측은 직선 거리일 수 있어 악궁을 따라 잰 이 계산값과 그대로 비교하지 마세요.</li>
+    </ul>
+    <p class="cite"><a href="https://koreascience.or.kr/article/JAKO200931670571761.page">KJOMR 2009;39:81</a> · <a href="https://www.mdpi.com/2075-4418/15/24/3109">Kim & Hur 2025, Diagnostics 15:3109</a> · <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7806401/">체계적 고찰</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5141544">이란인 CBCT</a></p></section>
+    <section><h3>하악 · 정중선<span class="lv low">근거 자료 없음</span></h3>
+    <p>하악에는 절치유두 같은 고정 랜드마크가 없어, 31·41 접촉점은 상악 정중선·안면 정중선·순측 소대를 함께 보고 잡는 임상 관례를 따릅니다.</p></section>`;
+  }
+  $('ref').innerHTML=h;
+}
+
+/* ---------- 내보내기 ---------- */
+function wrapLines(lines,max){
+  const out=[];
+  lines.forEach(l=>{
+    let s=l;const ind=(l.match(/^\s*/)||[''])[0];
+    while(s.length>max){let cut=s.lastIndexOf(' ',max);if(cut<=ind.length)cut=max;out.push(s.slice(0,cut));s=ind+'   '+s.slice(cut).trimStart();}
+    out.push(s);
+  });
+  return out;
+}
+function buildExportSVG(){
+  const d=drawAll(RS,PAL_PRINT,'ex');
+  const W=Math.max(d.W,760),ox=Math.round((W-d.W)/2);
+  const now=new Date(),ds=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+  const lines=wrapLines(summary().split('\n'),Math.floor((W-40)/7.3));
+  const head=64,lh=17,H=head+d.H+20+lines.length*lh+24;
+  let t=`<rect width="${W}" height="${H}" fill="#ffffff"/>`;
+  t+=`<text x="20" y="30" style="font:700 19px 'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif" fill="#15202b">임플란트 식립 계획${st.caseName?' · '+esc(st.caseName):''}</text>`;
+  t+=`<text x="20" y="50" style="font:12px 'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif" fill="#5a6775">${ds} · ${st.view==='B'?'상하악':JN[st.view]} · 보철 폭 기준 ${st.preset==='pros'?'보철':'자연치'} · 단위 mm</text>`;
+  t+=`<g transform="translate(${ox},${head})">${d.inner}</g>`;
+  const ty=head+d.H+20;
+  t+=`<line x1="20" y1="${ty-8}" x2="${W-20}" y2="${ty-8}" stroke="#d5dce3"/>`;
+  lines.forEach((l,i)=>{t+=`<text x="20" y="${ty+10+i*lh}" xml:space="preserve" style="font:12px 'IBM Plex Mono','Apple SD Gothic Neo','Malgun Gothic',monospace" fill="#15202b">${esc(l)}</text>`;});
+  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${t}</svg>`,W,H};
+}
+function toPNG(){
+  return new Promise((res,rej)=>{
+    const {svg,W,H}=buildExportSVG(),img=new Image(),scale=2;
+    img.onload=()=>{
+      const cv=document.createElement('canvas');cv.width=W*scale;cv.height=H*scale;
+      const cx=cv.getContext('2d');cx.scale(scale,scale);cx.drawImage(img,0,0);
+      cv.toBlob(b=>b?res({blob:b,url:cv.toDataURL('image/png'),jpg:cv.toDataURL('image/jpeg',0.9),W,H}):rej(new Error('PNG 변환 실패')),'image/png');
+    };
+    img.onerror=()=>rej(new Error('이미지 렌더링 실패'));
+    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  });
+}
+let downloads=null;
+(async()=>{try{if(window.claude&&claude.use)downloads=await claude.use('downloads');}catch(e){downloads=null;}})();
+async function doExport(kind){
+  const status=$('exportStatus');status.textContent='만드는 중…';
+  try{
+    const p=await toPNG();
+    const nd=new Date(),stamp=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}-${String(nd.getDate()).padStart(2,'0')}`+(st.caseName?'-'+st.caseName.replace(/[\\/:*?"<>|\s]+/g,'_'):'');
+    let data,name;
+    if(kind==='pdf'){
+      if(!window.jspdf){throw new Error('PDF 모듈을 불러오지 못했습니다');}
+      const land=p.W>=p.H;
+      const doc=new window.jspdf.jsPDF({orientation:land?'landscape':'portrait',unit:'mm',format:'a4'});
+      const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),m=8;
+      const r=Math.min((pw-2*m)/p.W,(ph-2*m)/p.H);
+      doc.addImage(p.jpg,'JPEG',(pw-p.W*r)/2,m,p.W*r,p.H*r);
+      data=doc.output('blob');name=`implant-plan-${stamp}.pdf`;
+    }else{data=p.blob;name=`implant-plan-${stamp}.png`;}
+    if(!window.claude){
+      const a=document.createElement('a'),u=URL.createObjectURL(data);
+      a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u),4000);status.textContent='저장했습니다.';return;
+    }
+    if(downloads){
+      try{await downloads.save({filename:name,data});status.textContent='저장했습니다.';return;}
+      catch(err){
+        if(err&&err.code==='declined'){status.textContent='저장을 취소했습니다.';return;}
+        if(err&&err.code==='rate_limited'){status.textContent='잠시 후 다시 눌러 주세요.';return;}
+      }
+    }
+    $('ovImg').src=p.url;$('overlay').classList.add('on');status.textContent='';
+  }catch(e){status.textContent='내보내기 실패: '+e.message;}
+}
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener('click',e=>{
+  const ex=e.target.closest('[data-export]');
+  if(ex){doExport(ex.dataset.export);return;}
+  const tb=e.target.closest('.tb');
+  if(tb){const t=+tb.dataset.t,b=st.brush;st.teeth[t]=(st.teeth[t]===b&&b!=='N')?'N':b;render();return;}
+  const br=e.target.closest('[data-brush]');
+  if(br){st.brush=br.dataset.brush;render();return;}
+  const cl=e.target.closest('[data-cload]');
+  if(cl){
+    const c=loadCases()[cl.dataset.cload];if(!c)return;
+    const keep={};KEEP.forEach(k=>keep[k]=st[k]);
+    st=Object.assign(defaultState(),c.state,keep);st.caseName=cl.dataset.cload;delArm=null;render();return;
+  }
+  const cd=e.target.closest('[data-cdel]');
+  if(cd){
+    const n=cd.dataset.cdel;
+    if(delArm!==n){delArm=n;renderCases();return;}
+    const c=loadCases();delete c[n];storeCases(c);delArm=null;renderCases();return;
+  }
+  const ly=e.target.closest('[data-layer]');
+  if(ly){const k=ly.dataset.layer;st.layers[k]=!st.layers[k];render();return;}
+  const al=e.target.closest('[data-all]');
+  if(al){ORDER[al.dataset.jaw].forEach(t=>{st.teeth[t]=al.dataset.all;});render();return;}
+  const wr=e.target.closest('[data-wreset]');
+  if(wr){ORDER[wr.dataset.wreset].forEach(t=>{delete st.over[t];});render();return;}
+});
+['U','L','B'].forEach(v=>{$('view'+v).onclick=()=>{st.view=v;render();};});
+$('prePros').onclick=()=>{st.preset='pros';render();};
+$('preNat').onclick=()=>{st.preset='nat';render();};
+$('fitBtn').onclick=()=>{st.fit=!st.fit;render();};
+$('caseName').addEventListener('input',e=>{st.caseName=e.target.value.trim();save();});
+$('caseName').addEventListener('change',()=>render());
+$('caseSave').onclick=()=>{
+  const n=($('caseName').value||'').trim();
+  if(!n){$('caseName').focus();$('caseName').placeholder='이름을 먼저 입력하세요';return;}
+  st.caseName=n;const c=loadCases();c[n]={state:snapshot(),savedAt:Date.now()};
+  const ok=storeCases(c);$('caseSave').textContent=ok?'저장됨':'저장 실패';setTimeout(()=>{$('caseSave').textContent='저장';},1500);render();
+};
+$('caseNew').onclick=()=>{const keep={view:st.view,preset:st.preset};KEEP.forEach(k=>keep[k]=st[k]);st=Object.assign(defaultState(),keep);ORDER.U.concat(ORDER.L).forEach(t=>{st.teeth[t]='N';});render();};
+$('ovClose').onclick=()=>$('overlay').classList.remove('on');
+$('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')$('overlay').classList.remove('on');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('overlay').classList.remove('on');});
+document.querySelectorAll('details[data-sec]').forEach(el=>el.addEventListener('toggle',()=>{st.open[el.id]=el.open;save();}));
+document.addEventListener('change',e=>{
+  const el=e.target,v=parseFloat(el.value),set=(o,k)=>{if(v>0)o[k]=v;else delete o[k];render();};
+  if(el.dataset.dia)set(st.dia,el.dataset.dia);
+  else if(el.dataset.len)set(st.len,el.dataset.len);
+  else if(el.dataset.w)set(st.over,el.dataset.w);
+  else if(el.id==='nasalIn'){st.nasal=v>0?v:null;render();}
+  else if(el.id==='thrII'){st.thrII=v>=0?v:3;render();}
+  else if(el.id==='thrTI'){st.thrTI=v>=0?v:1.5;render();}
+});
+$('copyBtn').onclick=async()=>{
+  const b=$('copyBtn');
+  try{await navigator.clipboard.writeText($('copyBox').value);b.textContent='복사됨';}
+  catch(e){$('copyBox').select();b.textContent='선택됨, 길게 눌러 복사';}
+  setTimeout(()=>{b.textContent='텍스트 복사';},1800);
+};
+render();
+if(!window.claude&&'serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('./sw.js').catch(()=>{});}
+</script>
+</body>
+</html>
